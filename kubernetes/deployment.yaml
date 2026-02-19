@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: ingredients
-          image: registry.local/woodpantry-ingredients:latest
+          image: ghcr.io/mwhite7112/woodpantry-ingredients:${IMAGE_TAG}
           ports:
             - containerPort: 8080
           env:
