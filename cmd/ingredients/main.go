@@ -3,7 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"strconv"
@@ -14,10 +14,13 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/mwhite7112/woodpantry-ingredients/internal/api"
 	"github.com/mwhite7112/woodpantry-ingredients/internal/db"
+	"github.com/mwhite7112/woodpantry-ingredients/internal/logging"
 	"github.com/mwhite7112/woodpantry-ingredients/internal/service"
 )
 
 func main() {
+	logging.Setup()
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
@@ -25,30 +28,35 @@ func main() {
 
 	dbURL := os.Getenv("DB_URL")
 	if dbURL == "" {
-		log.Fatal("DB_URL is required")
+		slog.Error("DB_URL is required")
+		os.Exit(1)
 	}
 
 	threshold := 0.8
 	if t := os.Getenv("RESOLVE_THRESHOLD"); t != "" {
 		v, err := strconv.ParseFloat(t, 64)
 		if err != nil {
-			log.Fatalf("invalid RESOLVE_THRESHOLD: %v", err)
+			slog.Error("invalid RESOLVE_THRESHOLD", "error", err)
+			os.Exit(1)
 		}
 		threshold = v
 	}
 
 	sqlDB, err := sql.Open("postgres", dbURL)
 	if err != nil {
-		log.Fatalf("failed to open database: %v", err)
+		slog.Error("failed to open database", "error", err)
+		os.Exit(1)
 	}
 	defer sqlDB.Close()
 
 	if err := sqlDB.Ping(); err != nil {
-		log.Fatalf("failed to connect to database: %v", err)
+		slog.Error("failed to connect to database", "error", err)
+		os.Exit(1)
 	}
 
 	if err := runMigrations(sqlDB); err != nil {
-		log.Fatalf("migrations failed: %v", err)
+		slog.Error("migrations failed", "error", err)
+		os.Exit(1)
 	}
 
 	queries := db.New(sqlDB)
@@ -56,9 +64,10 @@ func main() {
 	handler := api.NewRouter(svc)
 
 	addr := fmt.Sprintf(":%s", port)
-	log.Printf("ingredients service listening on %s", addr)
+	slog.Info("ingredients service listening", "addr", addr)
 	if err := http.ListenAndServe(addr, handler); err != nil {
-		log.Fatalf("server error: %v", err)
+		slog.Error("server error", "error", err)
+		os.Exit(1)
 	}
 }
 

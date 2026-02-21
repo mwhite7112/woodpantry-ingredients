@@ -4,18 +4,21 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/google/uuid"
 	"github.com/mwhite7112/woodpantry-ingredients/internal/db"
+	"github.com/mwhite7112/woodpantry-ingredients/internal/logging"
 	"github.com/mwhite7112/woodpantry-ingredients/internal/service"
 )
 
 // NewRouter wires up all routes with the provided Service.
 func NewRouter(svc *service.Service) http.Handler {
 	r := chi.NewRouter()
+	r.Use(logging.Middleware)
 	r.Use(middleware.Recoverer)
 
 	r.Get("/healthz", handleHealth)
@@ -40,7 +43,7 @@ func handleListIngredients(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		items, err := svc.Queries().ListIngredients(r.Context())
 		if err != nil {
-			jsonError(w, "failed to list ingredients", http.StatusInternalServerError)
+			jsonError(w, "failed to list ingredients", http.StatusInternalServerError, err)
 			return
 		}
 		if items == nil {
@@ -81,7 +84,7 @@ func handleCreateIngredient(svc *service.Service) http.HandlerFunc {
 			DefaultUnit: nullString(req.DefaultUnit),
 		})
 		if err != nil {
-			jsonError(w, "failed to create ingredient", http.StatusInternalServerError)
+			jsonError(w, "failed to create ingredient", http.StatusInternalServerError, err)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -105,7 +108,7 @@ func handleGetIngredient(svc *service.Service) http.HandlerFunc {
 				jsonError(w, "ingredient not found", http.StatusNotFound)
 				return
 			}
-			jsonError(w, "failed to get ingredient", http.StatusInternalServerError)
+			jsonError(w, "failed to get ingredient", http.StatusInternalServerError, err)
 			return
 		}
 		jsonOK(w, ing)
@@ -147,7 +150,7 @@ func handleUpdateIngredient(svc *service.Service) http.HandlerFunc {
 				jsonError(w, "ingredient not found", http.StatusNotFound)
 				return
 			}
-			jsonError(w, "failed to update ingredient", http.StatusInternalServerError)
+			jsonError(w, "failed to update ingredient", http.StatusInternalServerError, err)
 			return
 		}
 		jsonOK(w, ing)
@@ -179,7 +182,7 @@ func handleResolve(svc *service.Service) http.HandlerFunc {
 		}
 		result, err := svc.Resolve(r.Context(), req.Name)
 		if err != nil {
-			jsonError(w, "resolve failed", http.StatusInternalServerError)
+			jsonError(w, "resolve failed", http.StatusInternalServerError, err)
 			return
 		}
 		status := http.StatusOK
@@ -226,7 +229,7 @@ func handleMerge(svc *service.Service) http.HandlerFunc {
 				jsonError(w, "ingredient not found", http.StatusNotFound)
 				return
 			}
-			jsonError(w, "merge failed", http.StatusInternalServerError)
+			jsonError(w, "merge failed", http.StatusInternalServerError, err)
 			return
 		}
 		jsonOK(w, winner)
@@ -240,7 +243,10 @@ func jsonOK(w http.ResponseWriter, v any) {
 	json.NewEncoder(w).Encode(v) //nolint:errcheck
 }
 
-func jsonError(w http.ResponseWriter, msg string, status int) {
+func jsonError(w http.ResponseWriter, msg string, status int, errs ...error) {
+	if status >= 500 && len(errs) > 0 {
+		slog.Error(msg, "status", status, "error", errs[0])
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(map[string]string{"error": msg}) //nolint:errcheck
