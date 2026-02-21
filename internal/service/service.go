@@ -8,18 +8,18 @@ import (
 
 // Service holds all dependencies for the ingredient service layer.
 type Service struct {
-	q         *db.Queries
+	q         db.Querier
 	sqlDB     *sql.DB
 	threshold float64
 }
 
 // New creates a new Service.
-func New(q *db.Queries, sqlDB *sql.DB, threshold float64) *Service {
+func New(q db.Querier, sqlDB *sql.DB, threshold float64) *Service {
 	return &Service{q: q, sqlDB: sqlDB, threshold: threshold}
 }
 
-// Queries exposes the underlying db.Queries for direct use by handlers that
+// Queries exposes the underlying db.Querier for direct use by handlers that
 // don't require service-layer logic.
-func (s *Service) Queries() *db.Queries {
+func (s *Service) Queries() db.Querier {
 	return s.q
 }
