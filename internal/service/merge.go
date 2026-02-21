@@ -18,7 +18,7 @@ func (s *Service) Merge(ctx context.Context, winnerID, loserID uuid.UUID) (db.In
 	}
 	defer tx.Rollback() //nolint:errcheck
 
-	qtx := s.q.WithTx(tx)
+	qtx := db.New(tx)
 
 	winner, err := qtx.GetIngredient(ctx, winnerID)
 	if err != nil {
