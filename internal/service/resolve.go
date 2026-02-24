@@ -7,6 +7,7 @@ import (
 	"log/slog"
 
 	"github.com/agnivade/levenshtein"
+
 	"github.com/mwhite7112/woodpantry-ingredients/internal/db"
 )
 

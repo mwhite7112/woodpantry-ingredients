@@ -7,11 +7,12 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/mwhite7112/woodpantry-ingredients/internal/db"
-	"github.com/mwhite7112/woodpantry-ingredients/internal/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+
+	"github.com/mwhite7112/woodpantry-ingredients/internal/db"
+	"github.com/mwhite7112/woodpantry-ingredients/internal/mocks"
 )
 
 // ---------------------------------------------------------------------------
@@ -108,7 +109,7 @@ func TestResolve_ExactNameMatch(t *testing.T) {
 	result, err := svc.Resolve(context.Background(), "garlic")
 	require.NoError(t, err)
 	assert.Equal(t, garlic.ID, result.Ingredient.ID)
-	assert.Equal(t, 1.0, result.Confidence)
+	assert.InDelta(t, 1.0, result.Confidence, 0)
 	assert.False(t, result.Created)
 }
 
@@ -124,7 +125,7 @@ func TestResolve_ExactAliasMatch(t *testing.T) {
 	result, err := svc.Resolve(context.Background(), "garlic clove")
 	require.NoError(t, err)
 	assert.Equal(t, garlic.ID, result.Ingredient.ID)
-	assert.Equal(t, 1.0, result.Confidence)
+	assert.InDelta(t, 1.0, result.Confidence, 0)
 	assert.False(t, result.Created)
 }
 
@@ -162,7 +163,7 @@ func TestResolve_BelowThreshold_AutoCreate(t *testing.T) {
 	result, err := svc.Resolve(context.Background(), "Butter")
 	require.NoError(t, err)
 	assert.Equal(t, created.ID, result.Ingredient.ID)
-	assert.Equal(t, 1.0, result.Confidence)
+	assert.InDelta(t, 1.0, result.Confidence, 0)
 	assert.True(t, result.Created)
 }
 
@@ -186,7 +187,7 @@ func TestResolve_ConcurrentConflictFallback(t *testing.T) {
 	result, err := svc.Resolve(context.Background(), "Butter")
 	require.NoError(t, err)
 	assert.Equal(t, existing.ID, result.Ingredient.ID)
-	assert.Equal(t, 1.0, result.Confidence)
+	assert.InDelta(t, 1.0, result.Confidence, 0)
 	assert.False(t, result.Created)
 }
 

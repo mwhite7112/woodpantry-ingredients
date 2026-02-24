@@ -10,13 +10,14 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+
 	"github.com/mwhite7112/woodpantry-ingredients/internal/api"
 	"github.com/mwhite7112/woodpantry-ingredients/internal/db"
 	"github.com/mwhite7112/woodpantry-ingredients/internal/mocks"
 	"github.com/mwhite7112/woodpantry-ingredients/internal/service"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
 )
 
 // helpers
@@ -270,7 +271,7 @@ func TestResolve_ExistingIngredient(t *testing.T) {
 	require.NoError(t, json.NewDecoder(rec.Body).Decode(&resp))
 	ing := resp["ingredient"].(map[string]any)
 	assert.Equal(t, garlic.ID.String(), ing["ID"])
-	assert.Equal(t, 1.0, resp["confidence"])
+	assert.InDelta(t, 1.0, resp["confidence"], 0)
 	assert.Equal(t, false, resp["created"])
 }
 
