@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/json"
+	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -36,8 +38,9 @@ func newTestIngredient(name string) db.Ingredient {
 func setupRouter(t *testing.T) (*mocks.MockQuerier, http.Handler) {
 	t.Helper()
 	mockQ := mocks.NewMockQuerier(t)
-	svc := service.New(mockQ, nil, 0.8)
-	router := api.NewRouter(svc)
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	svc := service.New(mockQ, nil, 0.8, log)
+	router := api.NewRouter(svc, log)
 	return mockQ, router
 }
 
@@ -82,7 +85,7 @@ func TestListIngredients_Empty(t *testing.T) {
 	assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
 
 	var items []db.Ingredient
-	require.NoError(t, json.NewDecoder(rec.Body).Decode(&items))
+	require.NoError(t, json.NewDecoder(rec.Body).Decode(&items)) //nolint:musttag // sqlc Ingredient
 	assert.Empty(t, items)
 }
 

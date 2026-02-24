@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"database/sql"
+	"io"
+	"log/slog"
 	"testing"
 	"time"
 
@@ -101,7 +103,7 @@ func TestResolve_ExactNameMatch(t *testing.T) {
 	t.Parallel()
 
 	mockQ := mocks.NewMockQuerier(t)
-	svc := New(mockQ, nil, 0.8)
+	svc := New(mockQ, nil, 0.8, slog.New(slog.NewTextHandler(io.Discard, nil)))
 
 	garlic := newIngredient("garlic", []string{})
 	mockQ.EXPECT().ListIngredients(mock.Anything).Return([]db.Ingredient{garlic}, nil)
@@ -117,7 +119,7 @@ func TestResolve_ExactAliasMatch(t *testing.T) {
 	t.Parallel()
 
 	mockQ := mocks.NewMockQuerier(t)
-	svc := New(mockQ, nil, 0.8)
+	svc := New(mockQ, nil, 0.8, slog.New(slog.NewTextHandler(io.Discard, nil)))
 
 	garlic := newIngredient("garlic", []string{"garlic clove"})
 	mockQ.EXPECT().ListIngredients(mock.Anything).Return([]db.Ingredient{garlic}, nil)
@@ -133,7 +135,7 @@ func TestResolve_FuzzyAboveThreshold(t *testing.T) {
 	t.Parallel()
 
 	mockQ := mocks.NewMockQuerier(t)
-	svc := New(mockQ, nil, 0.8)
+	svc := New(mockQ, nil, 0.8, slog.New(slog.NewTextHandler(io.Discard, nil)))
 
 	garlic := newIngredient("garlic", []string{})
 	mockQ.EXPECT().ListIngredients(mock.Anything).Return([]db.Ingredient{garlic}, nil)
@@ -150,7 +152,7 @@ func TestResolve_BelowThreshold_AutoCreate(t *testing.T) {
 	t.Parallel()
 
 	mockQ := mocks.NewMockQuerier(t)
-	svc := New(mockQ, nil, 0.8)
+	svc := New(mockQ, nil, 0.8, slog.New(slog.NewTextHandler(io.Discard, nil)))
 
 	garlic := newIngredient("garlic", []string{})
 	mockQ.EXPECT().ListIngredients(mock.Anything).Return([]db.Ingredient{garlic}, nil)
@@ -171,7 +173,7 @@ func TestResolve_ConcurrentConflictFallback(t *testing.T) {
 	t.Parallel()
 
 	mockQ := mocks.NewMockQuerier(t)
-	svc := New(mockQ, nil, 0.8)
+	svc := New(mockQ, nil, 0.8, slog.New(slog.NewTextHandler(io.Discard, nil)))
 
 	mockQ.EXPECT().ListIngredients(mock.Anything).Return([]db.Ingredient{}, nil)
 
@@ -195,7 +197,7 @@ func TestResolve_EmptyDB_AutoCreate(t *testing.T) {
 	t.Parallel()
 
 	mockQ := mocks.NewMockQuerier(t)
-	svc := New(mockQ, nil, 0.8)
+	svc := New(mockQ, nil, 0.8, slog.New(slog.NewTextHandler(io.Discard, nil)))
 
 	mockQ.EXPECT().ListIngredients(mock.Anything).Return([]db.Ingredient{}, nil)
 

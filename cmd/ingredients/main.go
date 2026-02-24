@@ -60,9 +60,10 @@ func run() error {
 		return fmt.Errorf("migrations: %w", err)
 	}
 
+	log := slog.Default()
 	queries := db.New(sqlDB)
-	svc := service.New(queries, sqlDB, threshold)
-	handler := api.NewRouter(svc)
+	svc := service.New(queries, sqlDB, threshold, log)
+	handler := api.NewRouter(svc, log)
 
 	addr := fmt.Sprintf(":%s", port)
 	slog.Info("ingredients service listening", "addr", addr)
