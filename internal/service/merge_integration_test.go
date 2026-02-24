@@ -5,6 +5,8 @@ package service
 import (
 	"context"
 	"database/sql"
+	"io"
+	"log/slog"
 	"testing"
 
 	"github.com/mwhite7112/woodpantry-ingredients/internal/db"
@@ -16,7 +18,7 @@ import (
 func TestMerge_Integration(t *testing.T) {
 	sqlDB := testutil.SetupDB(t)
 	q := db.New(sqlDB)
-	svc := New(q, sqlDB, 0.8)
+	svc := New(q, sqlDB, 0.8, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	ctx := context.Background()
 
 	// Create two ingredients.
@@ -48,7 +50,7 @@ func TestMerge_Integration(t *testing.T) {
 func TestMerge_MovesSubstitutes(t *testing.T) {
 	sqlDB := testutil.SetupDB(t)
 	q := db.New(sqlDB)
-	svc := New(q, sqlDB, 0.8)
+	svc := New(q, sqlDB, 0.8, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	ctx := context.Background()
 
 	winner, err := q.CreateIngredient(ctx, db.CreateIngredientParams{
