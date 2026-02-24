@@ -4,6 +4,8 @@ package service
 
 import (
 	"context"
+	"io"
+	"log/slog"
 	"sync"
 	"testing"
 
@@ -16,7 +18,7 @@ import (
 func TestIntegrationResolve_AutoCreate(t *testing.T) {
 	sqlDB := testutil.SetupDB(t)
 	q := db.New(sqlDB)
-	svc := New(q, sqlDB, 0.8)
+	svc := New(q, sqlDB, 0.8, slog.New(slog.NewTextHandler(io.Discard, nil)))
 
 	result, err := svc.Resolve(context.Background(), "Flour")
 	require.NoError(t, err)
@@ -28,7 +30,7 @@ func TestIntegrationResolve_AutoCreate(t *testing.T) {
 func TestIntegrationResolve_ExactMatch(t *testing.T) {
 	sqlDB := testutil.SetupDB(t)
 	q := db.New(sqlDB)
-	svc := New(q, sqlDB, 0.8)
+	svc := New(q, sqlDB, 0.8, slog.New(slog.NewTextHandler(io.Discard, nil)))
 
 	_, err := svc.Resolve(context.Background(), "flour")
 	require.NoError(t, err)
@@ -43,7 +45,7 @@ func TestIntegrationResolve_ExactMatch(t *testing.T) {
 func TestIntegrationResolve_FuzzyMatch(t *testing.T) {
 	sqlDB := testutil.SetupDB(t)
 	q := db.New(sqlDB)
-	svc := New(q, sqlDB, 0.7)
+	svc := New(q, sqlDB, 0.7, slog.New(slog.NewTextHandler(io.Discard, nil)))
 
 	_, err := svc.Resolve(context.Background(), "chicken breast")
 	require.NoError(t, err)
@@ -58,7 +60,7 @@ func TestIntegrationResolve_FuzzyMatch(t *testing.T) {
 func TestIntegrationResolve_BelowThreshold(t *testing.T) {
 	sqlDB := testutil.SetupDB(t)
 	q := db.New(sqlDB)
-	svc := New(q, sqlDB, 0.8)
+	svc := New(q, sqlDB, 0.8, slog.New(slog.NewTextHandler(io.Discard, nil)))
 
 	_, err := svc.Resolve(context.Background(), "flour")
 	require.NoError(t, err)
@@ -72,7 +74,7 @@ func TestIntegrationResolve_BelowThreshold(t *testing.T) {
 func TestIntegrationResolve_ConcurrentRace(t *testing.T) {
 	sqlDB := testutil.SetupDB(t)
 	q := db.New(sqlDB)
-	svc := New(q, sqlDB, 0.8)
+	svc := New(q, sqlDB, 0.8, slog.New(slog.NewTextHandler(io.Discard, nil)))
 
 	var wg sync.WaitGroup
 	results := make([]ResolveResult, 10)

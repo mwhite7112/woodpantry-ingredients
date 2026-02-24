@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+
 	"github.com/mwhite7112/woodpantry-ingredients/internal/db"
 )
 
@@ -102,4 +103,3 @@ func mergeAliases(winnerAliases []string, loserName string, loserAliases []strin
 
 	return result
 }
-

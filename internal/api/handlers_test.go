@@ -4,19 +4,22 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/json"
+	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+
 	"github.com/mwhite7112/woodpantry-ingredients/internal/api"
 	"github.com/mwhite7112/woodpantry-ingredients/internal/db"
 	"github.com/mwhite7112/woodpantry-ingredients/internal/mocks"
 	"github.com/mwhite7112/woodpantry-ingredients/internal/service"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
 )
 
 // helpers
@@ -35,8 +38,9 @@ func newTestIngredient(name string) db.Ingredient {
 func setupRouter(t *testing.T) (*mocks.MockQuerier, http.Handler) {
 	t.Helper()
 	mockQ := mocks.NewMockQuerier(t)
-	svc := service.New(mockQ, nil, 0.8)
-	router := api.NewRouter(svc)
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	svc := service.New(mockQ, nil, 0.8, log)
+	router := api.NewRouter(svc, log)
 	return mockQ, router
 }
 
@@ -81,7 +85,7 @@ func TestListIngredients_Empty(t *testing.T) {
 	assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
 
 	var items []db.Ingredient
-	require.NoError(t, json.NewDecoder(rec.Body).Decode(&items))
+	require.NoError(t, json.NewDecoder(rec.Body).Decode(&items)) //nolint:musttag // sqlc Ingredient
 	assert.Empty(t, items)
 }
 
@@ -270,7 +274,7 @@ func TestResolve_ExistingIngredient(t *testing.T) {
 	require.NoError(t, json.NewDecoder(rec.Body).Decode(&resp))
 	ing := resp["ingredient"].(map[string]any)
 	assert.Equal(t, garlic.ID.String(), ing["ID"])
-	assert.Equal(t, 1.0, resp["confidence"])
+	assert.InDelta(t, 1.0, resp["confidence"], 0)
 	assert.Equal(t, false, resp["created"])
 }
 

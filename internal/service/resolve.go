@@ -4,9 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"log/slog"
 
 	"github.com/agnivade/levenshtein"
+
 	"github.com/mwhite7112/woodpantry-ingredients/internal/db"
 )
 
@@ -52,7 +52,7 @@ func (s *Service) Resolve(ctx context.Context, rawName string) (ResolveResult, e
 	for _, ing := range all {
 		// Check exact name match first.
 		if ing.Name == normalized {
-			slog.Debug("resolve: exact name match", "raw", rawName, "matched", ing.Name)
+			s.log.DebugContext(ctx, "resolve: exact name match", "raw", rawName, "matched", ing.Name)
 			return ResolveResult{Ingredient: ing, Confidence: 1.0, Created: false}, nil
 		}
 		score := similarity(normalized, ing.Name)
@@ -60,11 +60,20 @@ func (s *Service) Resolve(ctx context.Context, rawName string) (ResolveResult, e
 		// Check aliases — exact alias match is an immediate hit.
 		for _, alias := range ing.Aliases {
 			if alias == normalized {
-				slog.Debug("resolve: exact alias match", "raw", rawName, "alias", alias, "ingredient", ing.Name)
+				s.log.DebugContext(
+					ctx,
+					"resolve: exact alias match",
+					"raw",
+					rawName,
+					"alias",
+					alias,
+					"ingredient",
+					ing.Name,
+				)
 				return ResolveResult{Ingredient: ing, Confidence: 1.0, Created: false}, nil
 			}
-			if s := similarity(normalized, alias); s > score {
-				score = s
+			if sc := similarity(normalized, alias); sc > score {
+				score = sc
 			}
 		}
 
@@ -75,12 +84,21 @@ func (s *Service) Resolve(ctx context.Context, rawName string) (ResolveResult, e
 	}
 
 	if bestScore >= s.threshold {
-		slog.Debug("resolve: fuzzy match", "raw", rawName, "matched", bestIngredient.Name, "score", bestScore)
+		s.log.DebugContext(
+			ctx,
+			"resolve: fuzzy match",
+			"raw",
+			rawName,
+			"matched",
+			bestIngredient.Name,
+			"score",
+			bestScore,
+		)
 		return ResolveResult{Ingredient: bestIngredient, Confidence: bestScore, Created: false}, nil
 	}
 
 	// No match above threshold — auto-create.
-	slog.Info("resolve: auto-creating ingredient", "name", normalized, "best_score", bestScore)
+	s.log.InfoContext(ctx, "resolve: auto-creating ingredient", "name", normalized, "best_score", bestScore)
 	ing, err := s.q.UpsertIngredient(ctx, db.UpsertIngredientParams{
 		Name:        normalized,
 		Aliases:     []string{},

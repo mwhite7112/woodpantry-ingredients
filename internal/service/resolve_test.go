@@ -3,15 +3,18 @@ package service
 import (
 	"context"
 	"database/sql"
+	"io"
+	"log/slog"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/mwhite7112/woodpantry-ingredients/internal/db"
-	"github.com/mwhite7112/woodpantry-ingredients/internal/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+
+	"github.com/mwhite7112/woodpantry-ingredients/internal/db"
+	"github.com/mwhite7112/woodpantry-ingredients/internal/mocks"
 )
 
 // ---------------------------------------------------------------------------
@@ -100,7 +103,7 @@ func TestResolve_ExactNameMatch(t *testing.T) {
 	t.Parallel()
 
 	mockQ := mocks.NewMockQuerier(t)
-	svc := New(mockQ, nil, 0.8)
+	svc := New(mockQ, nil, 0.8, slog.New(slog.NewTextHandler(io.Discard, nil)))
 
 	garlic := newIngredient("garlic", []string{})
 	mockQ.EXPECT().ListIngredients(mock.Anything).Return([]db.Ingredient{garlic}, nil)
@@ -108,7 +111,7 @@ func TestResolve_ExactNameMatch(t *testing.T) {
 	result, err := svc.Resolve(context.Background(), "garlic")
 	require.NoError(t, err)
 	assert.Equal(t, garlic.ID, result.Ingredient.ID)
-	assert.Equal(t, 1.0, result.Confidence)
+	assert.InDelta(t, 1.0, result.Confidence, 0)
 	assert.False(t, result.Created)
 }
 
@@ -116,7 +119,7 @@ func TestResolve_ExactAliasMatch(t *testing.T) {
 	t.Parallel()
 
 	mockQ := mocks.NewMockQuerier(t)
-	svc := New(mockQ, nil, 0.8)
+	svc := New(mockQ, nil, 0.8, slog.New(slog.NewTextHandler(io.Discard, nil)))
 
 	garlic := newIngredient("garlic", []string{"garlic clove"})
 	mockQ.EXPECT().ListIngredients(mock.Anything).Return([]db.Ingredient{garlic}, nil)
@@ -124,7 +127,7 @@ func TestResolve_ExactAliasMatch(t *testing.T) {
 	result, err := svc.Resolve(context.Background(), "garlic clove")
 	require.NoError(t, err)
 	assert.Equal(t, garlic.ID, result.Ingredient.ID)
-	assert.Equal(t, 1.0, result.Confidence)
+	assert.InDelta(t, 1.0, result.Confidence, 0)
 	assert.False(t, result.Created)
 }
 
@@ -132,7 +135,7 @@ func TestResolve_FuzzyAboveThreshold(t *testing.T) {
 	t.Parallel()
 
 	mockQ := mocks.NewMockQuerier(t)
-	svc := New(mockQ, nil, 0.8)
+	svc := New(mockQ, nil, 0.8, slog.New(slog.NewTextHandler(io.Discard, nil)))
 
 	garlic := newIngredient("garlic", []string{})
 	mockQ.EXPECT().ListIngredients(mock.Anything).Return([]db.Ingredient{garlic}, nil)
@@ -149,7 +152,7 @@ func TestResolve_BelowThreshold_AutoCreate(t *testing.T) {
 	t.Parallel()
 
 	mockQ := mocks.NewMockQuerier(t)
-	svc := New(mockQ, nil, 0.8)
+	svc := New(mockQ, nil, 0.8, slog.New(slog.NewTextHandler(io.Discard, nil)))
 
 	garlic := newIngredient("garlic", []string{})
 	mockQ.EXPECT().ListIngredients(mock.Anything).Return([]db.Ingredient{garlic}, nil)
@@ -162,7 +165,7 @@ func TestResolve_BelowThreshold_AutoCreate(t *testing.T) {
 	result, err := svc.Resolve(context.Background(), "Butter")
 	require.NoError(t, err)
 	assert.Equal(t, created.ID, result.Ingredient.ID)
-	assert.Equal(t, 1.0, result.Confidence)
+	assert.InDelta(t, 1.0, result.Confidence, 0)
 	assert.True(t, result.Created)
 }
 
@@ -170,7 +173,7 @@ func TestResolve_ConcurrentConflictFallback(t *testing.T) {
 	t.Parallel()
 
 	mockQ := mocks.NewMockQuerier(t)
-	svc := New(mockQ, nil, 0.8)
+	svc := New(mockQ, nil, 0.8, slog.New(slog.NewTextHandler(io.Discard, nil)))
 
 	mockQ.EXPECT().ListIngredients(mock.Anything).Return([]db.Ingredient{}, nil)
 
@@ -186,7 +189,7 @@ func TestResolve_ConcurrentConflictFallback(t *testing.T) {
 	result, err := svc.Resolve(context.Background(), "Butter")
 	require.NoError(t, err)
 	assert.Equal(t, existing.ID, result.Ingredient.ID)
-	assert.Equal(t, 1.0, result.Confidence)
+	assert.InDelta(t, 1.0, result.Confidence, 0)
 	assert.False(t, result.Created)
 }
 
@@ -194,7 +197,7 @@ func TestResolve_EmptyDB_AutoCreate(t *testing.T) {
 	t.Parallel()
 
 	mockQ := mocks.NewMockQuerier(t)
-	svc := New(mockQ, nil, 0.8)
+	svc := New(mockQ, nil, 0.8, slog.New(slog.NewTextHandler(io.Discard, nil)))
 
 	mockQ.EXPECT().ListIngredients(mock.Anything).Return([]db.Ingredient{}, nil)
 
