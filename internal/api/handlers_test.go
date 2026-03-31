@@ -336,3 +336,135 @@ func TestMerge_InvalidIDs(t *testing.T) {
 		})
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Substitutes
+// ---------------------------------------------------------------------------
+
+func TestListSubstitutes(t *testing.T) {
+	t.Parallel()
+	mockQ, router := setupRouter(t)
+
+	id := uuid.New()
+	subID := uuid.New()
+	sub := db.IngredientSubstitute{
+		ID:           uuid.New(),
+		IngredientID: id,
+		SubstituteID: subID,
+		Ratio:        1.5,
+		Notes:        sql.NullString{String: "use more", Valid: true},
+	}
+	mockQ.EXPECT().ListSubstitutesByIngredient(mock.Anything, id).Return([]db.IngredientSubstitute{sub}, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/ingredients/"+id.String()+"/substitutes", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var got []map[string]any
+	require.NoError(t, json.NewDecoder(rec.Body).Decode(&got))
+	assert.Len(t, got, 1)
+	assert.Equal(t, id.String(), got[0]["ingredient_id"])
+	assert.Equal(t, subID.String(), got[0]["substitute_id"])
+	assert.Equal(t, 1.5, got[0]["ratio"])
+	assert.Equal(t, "use more", got[0]["notes"])
+}
+
+func TestCreateSubstitute(t *testing.T) {
+	t.Parallel()
+	mockQ, router := setupRouter(t)
+
+	id := uuid.New()
+	subID := uuid.New()
+	sub := db.IngredientSubstitute{
+		ID:           uuid.New(),
+		IngredientID: id,
+		SubstituteID: subID,
+		Ratio:        1.5,
+		Notes:        sql.NullString{String: "test notes", Valid: true},
+	}
+	mockQ.EXPECT().CreateSubstitute(mock.Anything, mock.MatchedBy(func(p db.CreateSubstituteParams) bool {
+		return p.IngredientID == id && p.SubstituteID == subID && p.Ratio == 1.5
+	})).Return(sub, nil)
+
+	body := jsonBody(t, map[string]any{
+		"substitute_id": subID.String(),
+		"ratio":         1.5,
+		"notes":         "test notes",
+	})
+	req := httptest.NewRequest(http.MethodPost, "/ingredients/"+id.String()+"/substitutes", body)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusCreated, rec.Code)
+
+	var got map[string]any
+	require.NoError(t, json.NewDecoder(rec.Body).Decode(&got))
+	assert.Equal(t, id.String(), got["ingredient_id"])
+}
+
+// ---------------------------------------------------------------------------
+// Unit Conversions
+// ---------------------------------------------------------------------------
+
+func TestListConversions(t *testing.T) {
+	t.Parallel()
+	mockQ, router := setupRouter(t)
+
+	id := uuid.New()
+	conv := db.UnitConversion{
+		ID:           uuid.New(),
+		IngredientID: id,
+		FromUnit:     "tbsp",
+		ToUnit:       "tsp",
+		Factor:       3.0,
+	}
+	mockQ.EXPECT().ListUnitConversionsByIngredient(mock.Anything, id).Return([]db.UnitConversion{conv}, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/ingredients/"+id.String()+"/conversions", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var got []map[string]any
+	require.NoError(t, json.NewDecoder(rec.Body).Decode(&got))
+	assert.Len(t, got, 1)
+	assert.Equal(t, "tbsp", got[0]["from_unit"])
+	assert.Equal(t, 3.0, got[0]["factor"])
+}
+
+func TestCreateConversion(t *testing.T) {
+	t.Parallel()
+	mockQ, router := setupRouter(t)
+
+	id := uuid.New()
+	conv := db.UnitConversion{
+		ID:           uuid.New(),
+		IngredientID: id,
+		FromUnit:     "kg",
+		ToUnit:       "g",
+		Factor:       1000.0,
+	}
+	mockQ.EXPECT().CreateUnitConversion(mock.Anything, mock.MatchedBy(func(p db.CreateUnitConversionParams) bool {
+		return p.IngredientID == id && p.FromUnit == "kg" && p.ToUnit == "g" && p.Factor == 1000.0
+	})).Return(conv, nil)
+
+	body := jsonBody(t, map[string]any{
+		"from_unit": "kg",
+		"to_unit":   "g",
+		"factor":    1000.0,
+	})
+	req := httptest.NewRequest(http.MethodPost, "/ingredients/"+id.String()+"/conversions", body)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusCreated, rec.Code)
+
+	var got map[string]any
+	require.NoError(t, json.NewDecoder(rec.Body).Decode(&got))
+	assert.Equal(t, "kg", got["from_unit"])
+}
