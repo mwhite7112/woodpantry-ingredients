@@ -31,6 +31,11 @@ func NewRouter(svc *service.Service, log *slog.Logger) http.Handler {
 	r.Get("/ingredients/{id}", handleGetIngredient(svc, log))
 	r.Put("/ingredients/{id}", handleUpdateIngredient(svc, log))
 
+	r.Get("/ingredients/{id}/substitutes", handleListSubstitutes(svc, log))
+	r.Post("/ingredients/{id}/substitutes", handleCreateSubstitute(svc, log))
+	r.Get("/ingredients/{id}/conversions", handleListConversions(svc, log))
+	r.Post("/ingredients/{id}/conversions", handleCreateConversion(svc, log))
+
 	return r
 }
 
@@ -155,6 +160,184 @@ func handleUpdateIngredient(svc *service.Service, log *slog.Logger) http.Handler
 			return
 		}
 		jsonOK(w, ing)
+	}
+}
+
+// --- substitutes ---
+
+type substituteResponse struct {
+	ID           uuid.UUID `json:"id"`
+	IngredientID uuid.UUID `json:"ingredient_id"`
+	SubstituteID uuid.UUID `json:"substitute_id"`
+	Ratio        float64   `json:"ratio"`
+	Notes        string    `json:"notes,omitempty"`
+}
+
+func handleListSubstitutes(svc *service.Service, log *slog.Logger) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id, err := uuid.Parse(chi.URLParam(r, "id"))
+		if err != nil {
+			jsonError(log, w, "invalid id", http.StatusBadRequest)
+			return
+		}
+		items, err := svc.Queries().ListSubstitutesByIngredient(r.Context(), id)
+		if err != nil {
+			jsonError(log, w, "failed to list substitutes", http.StatusInternalServerError, err)
+			return
+		}
+		if items == nil {
+			items = []db.IngredientSubstitute{}
+		}
+
+		resp := make([]substituteResponse, len(items))
+		for i, item := range items {
+			resp[i] = substituteResponse{
+				ID:           item.ID,
+				IngredientID: item.IngredientID,
+				SubstituteID: item.SubstituteID,
+				Ratio:        item.Ratio,
+				Notes:        item.Notes.String,
+			}
+		}
+		jsonOK(w, resp)
+	}
+}
+
+type createSubstituteRequest struct {
+	SubstituteID string  `json:"substitute_id"`
+	Ratio        float64 `json:"ratio"`
+	Notes        string  `json:"notes"`
+}
+
+func handleCreateSubstitute(svc *service.Service, log *slog.Logger) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id, err := uuid.Parse(chi.URLParam(r, "id"))
+		if err != nil {
+			jsonError(log, w, "invalid id", http.StatusBadRequest)
+			return
+		}
+		var req createSubstituteRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			jsonError(log, w, "invalid request body", http.StatusBadRequest)
+			return
+		}
+		subID, err := uuid.Parse(req.SubstituteID)
+		if err != nil {
+			jsonError(log, w, "invalid substitute_id", http.StatusBadRequest)
+			return
+		}
+
+		ratio := req.Ratio
+		if ratio == 0 {
+			ratio = 1.0
+		}
+
+		item, err := svc.Queries().CreateSubstitute(r.Context(), db.CreateSubstituteParams{
+			IngredientID: id,
+			SubstituteID: subID,
+			Ratio:        ratio,
+			Notes:        nullString(req.Notes),
+		})
+		if err != nil {
+			jsonError(log, w, "failed to create substitute", http.StatusInternalServerError, err)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(substituteResponse{ //nolint:errcheck
+			ID:           item.ID,
+			IngredientID: item.IngredientID,
+			SubstituteID: item.SubstituteID,
+			Ratio:        item.Ratio,
+			Notes:        item.Notes.String,
+		})
+	}
+}
+
+// --- conversions ---
+
+type conversionResponse struct {
+	ID           uuid.UUID `json:"id"`
+	IngredientID uuid.UUID `json:"ingredient_id"`
+	FromUnit     string    `json:"from_unit"`
+	ToUnit       string    `json:"to_unit"`
+	Factor       float64   `json:"factor"`
+}
+
+func handleListConversions(svc *service.Service, log *slog.Logger) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id, err := uuid.Parse(chi.URLParam(r, "id"))
+		if err != nil {
+			jsonError(log, w, "invalid id", http.StatusBadRequest)
+			return
+		}
+		items, err := svc.Queries().ListUnitConversionsByIngredient(r.Context(), id)
+		if err != nil {
+			jsonError(log, w, "failed to list conversions", http.StatusInternalServerError, err)
+			return
+		}
+		if items == nil {
+			items = []db.UnitConversion{}
+		}
+
+		resp := make([]conversionResponse, len(items))
+		for i, item := range items {
+			resp[i] = conversionResponse{
+				ID:           item.ID,
+				IngredientID: item.IngredientID,
+				FromUnit:     item.FromUnit,
+				ToUnit:       item.ToUnit,
+				Factor:       item.Factor,
+			}
+		}
+		jsonOK(w, resp)
+	}
+}
+
+type createConversionRequest struct {
+	FromUnit string  `json:"from_unit"`
+	ToUnit   string  `json:"to_unit"`
+	Factor   float64 `json:"factor"`
+}
+
+func handleCreateConversion(svc *service.Service, log *slog.Logger) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id, err := uuid.Parse(chi.URLParam(r, "id"))
+		if err != nil {
+			jsonError(log, w, "invalid id", http.StatusBadRequest)
+			return
+		}
+		var req createConversionRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			jsonError(log, w, "invalid request body", http.StatusBadRequest)
+			return
+		}
+		if req.FromUnit == "" || req.ToUnit == "" || req.Factor == 0 {
+			jsonError(log, w, "from_unit, to_unit and factor are required", http.StatusBadRequest)
+			return
+		}
+
+		item, err := svc.Queries().CreateUnitConversion(r.Context(), db.CreateUnitConversionParams{
+			IngredientID: id,
+			FromUnit:     req.FromUnit,
+			ToUnit:       req.ToUnit,
+			Factor:       req.Factor,
+		})
+		if err != nil {
+			jsonError(log, w, "failed to create conversion", http.StatusInternalServerError, err)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(conversionResponse{ //nolint:errcheck
+			ID:           item.ID,
+			IngredientID: item.IngredientID,
+			FromUnit:     item.FromUnit,
+			ToUnit:       item.ToUnit,
+			Factor:       item.Factor,
+		})
 	}
 }
 
