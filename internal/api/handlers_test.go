@@ -367,7 +367,9 @@ func TestListSubstitutes(t *testing.T) {
 	assert.Len(t, got, 1)
 	assert.Equal(t, id.String(), got[0]["ingredient_id"])
 	assert.Equal(t, subID.String(), got[0]["substitute_id"])
-	assert.Equal(t, 1.5, got[0]["ratio"])
+	ratio, ok := got[0]["ratio"].(float64)
+	require.True(t, ok)
+	assert.InEpsilon(t, 1.5, ratio, 1e-9)
 	assert.Equal(t, "use more", got[0]["notes"])
 }
 
@@ -433,7 +435,9 @@ func TestListConversions(t *testing.T) {
 	require.NoError(t, json.NewDecoder(rec.Body).Decode(&got))
 	assert.Len(t, got, 1)
 	assert.Equal(t, "tbsp", got[0]["from_unit"])
-	assert.Equal(t, 3.0, got[0]["factor"])
+	factor, ok := got[0]["factor"].(float64)
+	require.True(t, ok)
+	assert.InEpsilon(t, 3.0, factor, 1e-9)
 }
 
 func TestCreateConversion(t *testing.T) {
